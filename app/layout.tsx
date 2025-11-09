@@ -8,6 +8,9 @@ const inter = Inter({ subsets: ['latin'] })
 export const metadata: Metadata = {
   title: 'RABYMN LOCATION - Location de matériel de mariage',
   description: 'Location de matériel de mariage - RABYMN LOCATION',
+  verification: {
+    google: 'ZlhiLPerpxbp6z0KG2_Vi54lHeeiYQVX4gQjtWDm0Uk',
+  },
 }
 
 export default function RootLayout({
