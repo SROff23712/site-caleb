@@ -10,6 +10,8 @@ import {
   orderBy 
 } from 'firebase/firestore';
 import { db } from './firebase';
+import { ref, uploadBytes, getDownloadURL } from 'firebase/storage';
+import { storage } from './firebase';
 import { Article } from './types';
 
 export const getArticles = async (): Promise<Article[]> => {
@@ -74,6 +76,20 @@ export const deleteArticle = async (id: string): Promise<void> => {
     await deleteDoc(doc(db, 'articles', id));
   } catch (error) {
     console.error('Erreur lors de la suppression de l\'article:', error);
+    throw error;
+  }
+};
+
+export const uploadImage = async (file: File, folder = 'Nouveau dossier'): Promise<string> => {
+  try {
+    if (!storage) throw new Error('Firebase storage non initialisé');
+    const filename = `${Date.now()}_${file.name}`;
+    const storageRef = ref(storage, `${folder}/${filename}`);
+    await uploadBytes(storageRef, file as any);
+    const url = await getDownloadURL(storageRef);
+    return url;
+  } catch (error) {
+    console.error('Erreur lors de l\'upload de l\'image:', error);
     throw error;
   }
 };

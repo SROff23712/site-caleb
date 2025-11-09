@@ -14,6 +14,7 @@ export default function AdminPage() {
   const [reservations, setReservations] = useState<Reservation[]>([]);
   const [acceptedReservations, setAcceptedReservations] = useState<Reservation[]>([]);
   const [loading, setLoading] = useState(true);
+  const [acceptingId, setAcceptingId] = useState<string | null>(null);
   const [selectedTab, setSelectedTab] = useState<'reservations' | 'accepted' | 'articles'>('reservations');
 
   useEffect(() => {
@@ -69,9 +70,11 @@ export default function AdminPage() {
   };
 
   const handleAccept = async (reservationId: string) => {
+    if (acceptingId) return; // prevent concurrent accepts
+    setAcceptingId(reservationId);
     try {
       await updateReservationStatus(reservationId, 'acceptee');
-      
+
       // Envoyer l'email de confirmation d'acceptation
       const reservation = await getReservation(reservationId);
       if (reservation) {
@@ -96,18 +99,21 @@ export default function AdminPage() {
         };
 
         await addDoc(collection(db, 'devis'), devis);
-        
+
         // Envoyer l'email de confirmation d'acceptation
         const { sendAcceptanceEmail } = await import('@/lib/emailjs');
         await sendAcceptanceEmail(reservation);
       }
-      
+
       alert('Réservation acceptée ! Un email de confirmation a été envoyé au client.');
-      loadReservations();
-      loadAcceptedReservations();
     } catch (error) {
       console.error('Erreur:', error);
       alert('Erreur lors de l\'acceptation de la réservation');
+    } finally {
+      // Refresh lists and clear accepting state
+      setAcceptingId(null);
+      loadReservations();
+      loadAcceptedReservations();
     }
   };
 
@@ -264,9 +270,17 @@ export default function AdminPage() {
                       <div className="flex gap-4">
                         <button
                           onClick={() => handleAccept(reservation.id)}
-                          className="flex-1 bg-green-600 hover:bg-green-700 text-white px-6 py-3 rounded-lg font-semibold transition"
+                          disabled={acceptingId === reservation.id}
+                          className={`flex-1 px-6 py-3 rounded-lg font-semibold transition ${acceptingId === reservation.id ? 'bg-green-400 text-white cursor-not-allowed opacity-70' : 'bg-green-600 hover:bg-green-700 text-white'}`}
                         >
-                          Accepter et envoyer le devis
+                          {acceptingId === reservation.id ? (
+                            <span className="flex items-center justify-center gap-3">
+                              <span className="animate-spin rounded-full h-4 w-4 border-2 border-white/30 border-t-white"></span>
+                              Envoi du devis...
+                            </span>
+                          ) : (
+                            'Accepter et envoyer le devis'
+                          )}
                         </button>
                         <button
                           onClick={() => handleReject(reservation.id)}
@@ -397,8 +411,9 @@ function ArticlesManagement() {
     nom: '',
     description: '',
     prix: '',
-    image: '',
   });
+  const [imageFile, setImageFile] = useState<File | null>(null);
+  const [submitting, setSubmitting] = useState(false);
 
   useEffect(() => {
     loadArticles();
@@ -415,32 +430,80 @@ function ArticlesManagement() {
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     try {
+      if (submitting) return;
+      setSubmitting(true);
       const { createArticle, updateArticle } = await import('@/lib/articles');
+      // Keep existing image when editing and no new file selected
+      let imageUrl = editingArticle ? editingArticle.image : '';
+
+      // Image upload is required for new articles
+      if (!imageFile && !editingArticle) {
+        alert('Veuillez sélectionner un fichier image (obligatoire)');
+        return;
+      }
+
+      // If a file is selected, send it to our server API which will push it to GitHub
+      if (imageFile) {
+        try {
+          const fileToBase64 = (file: File) =>
+            new Promise<string>((resolve, reject) => {
+              const reader = new FileReader();
+              reader.onload = () => {
+                const result = String(reader.result || '');
+                // strip metadata prefix
+                const base64 = result.replace(/^data:.*;base64,/, '');
+                resolve(base64);
+              };
+              reader.onerror = reject;
+              reader.readAsDataURL(file);
+            });
+
+          const base64 = await fileToBase64(imageFile);
+          const resp = await fetch('/api/github-upload', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ filename: imageFile.name, content: base64 }),
+          });
+          const json = await resp.json();
+          if (!resp.ok || !json.download_url) {
+            console.error('GitHub upload failed', json);
+            alert('Erreur lors de l\'upload vers GitHub');
+            return;
+          }
+          imageUrl = json.download_url;
+        } catch (err) {
+          console.error('Erreur upload image vers GitHub:', err);
+          alert('Impossible d\'uploader l\'image vers GitHub');
+          return;
+        }
+      }
       
       if (editingArticle) {
         await updateArticle(editingArticle.id, {
           nom: formData.nom,
           description: formData.description,
           prix: parseFloat(formData.prix),
-          image: formData.image,
+          image: imageUrl,
         });
       } else {
         await createArticle({
           nom: formData.nom,
           description: formData.description,
           prix: parseFloat(formData.prix),
-          image: formData.image,
+          image: imageUrl,
           disponible: true,
         });
       }
       
       setShowForm(false);
       setEditingArticle(null);
-      setFormData({ nom: '', description: '', prix: '', image: '' });
-      loadArticles();
+      setFormData({ nom: '', description: '', prix: '' });
     } catch (error) {
       console.error('Erreur:', error);
       alert('Erreur lors de la sauvegarde');
+    } finally {
+      setSubmitting(false);
+      loadArticles();
     }
   };
 
@@ -450,8 +513,8 @@ function ArticlesManagement() {
       nom: article.nom,
       description: article.description,
       prix: article.prix.toString(),
-      image: article.image || '',
     });
+    setImageFile(null);
     setShowForm(true);
   };
 
@@ -481,10 +544,10 @@ function ArticlesManagement() {
           Gestion des articles
         </h2>
         <button
-          onClick={() => {
+            onClick={() => {
             setShowForm(true);
             setEditingArticle(null);
-            setFormData({ nom: '', description: '', prix: '', image: '' });
+            setFormData({ nom: '', description: '', prix: '' });
           }}
           className="bg-primary-600 hover:bg-primary-700 text-white px-6 py-3 rounded-lg font-semibold transition"
         >
@@ -534,30 +597,38 @@ function ArticlesManagement() {
             </div>
             
             <div>
-              <label className="block text-gray-700 mb-2 font-medium">URL de l'image</label>
+              <label className="block text-gray-700 mb-2 font-medium">Fichier image {editingArticle ? '(optionnel)' : '(obligatoire)'}</label>
               <input
-                type="url"
-                value={formData.image}
-                onChange={(e) => setFormData({ ...formData, image: e.target.value })}
-                className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
-                placeholder="https://..."
+                type="file"
+                accept="image/*"
+                onChange={(e) => setImageFile(e.target.files?.[0] ?? null)}
+                className="w-full"
+                required={!editingArticle}
               />
             </div>
             
             <div className="flex gap-4 pt-4">
               <button
                 type="submit"
-                className="bg-gradient-to-r from-primary-500 to-primary-600 hover:from-primary-600 hover:to-primary-700 text-white px-8 py-3 rounded-full font-semibold transition-all duration-300 shadow-lg hover:shadow-xl"
+                disabled={submitting}
+                className={`bg-gradient-to-r from-primary-500 to-primary-600 text-white px-8 py-3 rounded-full font-semibold transition-all duration-300 shadow-lg ${submitting ? 'opacity-50 cursor-not-allowed' : 'hover:from-primary-600 hover:to-primary-700 hover:shadow-xl'}`}
               >
-                {editingArticle ? 'Modifier' : 'Créer'}
+                {submitting ? (
+                  <span className="flex items-center gap-3 justify-center">
+                    <span className="animate-spin rounded-full h-5 w-5 border-2 border-white/30 border-t-white"></span>
+                    Envoi en cours...
+                  </span>
+                ) : (
+                  (editingArticle ? 'Modifier' : 'Créer')
+                )}
               </button>
               <button
                 type="button"
                 onClick={() => {
-                  setShowForm(false);
-                  setEditingArticle(null);
-                  setFormData({ nom: '', description: '', prix: '', image: '' });
-                }}
+                    setShowForm(false);
+                    setEditingArticle(null);
+                    setFormData({ nom: '', description: '', prix: '' });
+                  }}
                 className="bg-gray-100 hover:bg-gray-200 text-gray-700 px-8 py-3 rounded-full font-semibold transition-all duration-300 border border-gray-200"
               >
                 Annuler
