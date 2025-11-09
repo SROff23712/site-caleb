@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Navbar from '@/components/Navbar';
 import { useAuth } from '@/components/AuthProvider';
 import { getPendingReservations, updateReservationStatus, getReservation, getAcceptedReservations } from '@/lib/reservations';
-import { Reservation } from '@/lib/types';
+import type { Reservation, Devis } from '@/lib/types';
 import { differenceInDays } from 'date-fns';
 
 export default function AdminPage() {
@@ -78,8 +78,7 @@ export default function AdminPage() {
         // Créer le devis dans Firestore
         const { addDoc, collection } = await import('firebase/firestore');
         const { db } = await import('@/lib/firebase');
-        const { Devis } = await import('@/lib/types');
-        
+
         const devis: Omit<Devis, 'id'> = {
           reservationId: reservation.id,
           entreprise: reservation.userName,
