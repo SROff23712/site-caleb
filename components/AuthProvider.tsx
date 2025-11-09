@@ -25,6 +25,8 @@ export function AuthProvider({ children }: { children: React.ReactNode }) {
   const [userIsAdmin, setUserIsAdmin] = useState(false);
 
   useEffect(() => {
+    if (!auth) return;
+
     const unsubscribe = onAuthStateChanged(auth, async (user) => {
       setUser(user);
       if (user) {

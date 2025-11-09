@@ -9,7 +9,6 @@ import { createReservation } from '@/lib/reservations';
 import { Article, ReservationItem } from '@/lib/types';
 import DatePicker from 'react-datepicker';
 import 'react-datepicker/dist/react-datepicker.css';
-import { sendReservationEmail } from '@/lib/email';
 
 export default function ReservationPage() {
   const { user } = useAuth();
@@ -213,7 +212,7 @@ export default function ReservationPage() {
                 <label className="block text-gray-700 mb-2 font-medium">Date de début *</label>
                 <DatePicker
                   selected={dateDebut}
-                  onChange={(date) => setDateDebut(date)}
+                  onChange={(date: Date | null) => setDateDebut(date)}
                   minDate={new Date()}
                   dateFormat="dd/MM/yyyy"
                   className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"
@@ -225,7 +224,7 @@ export default function ReservationPage() {
                 <label className="block text-gray-700 mb-2 font-medium">Date de fin *</label>
                 <DatePicker
                   selected={dateFin}
-                  onChange={(date) => setDateFin(date)}
+                  onChange={(date: Date | null) => setDateFin(date)}
                   minDate={dateDebut || new Date()}
                   dateFormat="dd/MM/yyyy"
                   className="w-full px-4 py-3 border border-primary-200 rounded-xl focus:ring-2 focus:ring-primary-500 focus:border-primary-500 transition-all bg-white"

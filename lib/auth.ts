@@ -13,6 +13,8 @@ const ADMIN_EMAILS = ['sroff.developement@gmail.com'];
 export const signInWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
   try {
+    if (!auth) throw new Error('Firebase auth not initialized');
+
     const result = await signInWithPopup(auth, provider);
     const user = result.user;
     
@@ -40,6 +42,8 @@ export const signInWithGoogle = async () => {
 
 export const signOut = async () => {
   try {
+    if (!auth) throw new Error('Firebase auth not initialized');
+
     await firebaseSignOut(auth);
   } catch (error: any) {
     console.error('Erreur de déconnexion:', error);

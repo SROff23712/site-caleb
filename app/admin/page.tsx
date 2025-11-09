@@ -430,6 +430,7 @@ function ArticlesManagement() {
           description: formData.description,
           prix: parseFloat(formData.prix),
           image: formData.image,
+          disponible: true,
         });
       }
       
