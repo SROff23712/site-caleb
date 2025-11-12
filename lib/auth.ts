@@ -8,7 +8,7 @@ import { auth } from './firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
 import { db } from './firebase';
 
-const ADMIN_EMAILS = ['sroff.developement@gmail.com'];
+const ADMIN_EMAILS = ['sroff.developement@gmail.com','calebmayongo8@gmail.com'];
 
 export const signInWithGoogle = async () => {
   const provider = new GoogleAuthProvider();
