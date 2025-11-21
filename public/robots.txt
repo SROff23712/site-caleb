@@ -1,9 +1,4 @@
-# *
 User-agent: *
 Allow: /
 
-# Host
-Host: https://rabymn-location.vercel.app
-
-# Sitemaps
 Sitemap: https://rabymn-location.vercel.app/sitemap.xml
